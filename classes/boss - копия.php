@@ -23,6 +23,7 @@ class boss extends Core {
 				,$all_cat_row['id'],$all_cat_row['name']
 			);
 		}
+		
 		echo'
 					</ul>
 				</div>
@@ -44,108 +45,110 @@ class boss extends Core {
 		if(!$tittlecat_query) {exit(mysqli_error());}
 		$tittlecat = mysqli_fetch_array($tittlecat_query, MYSQLI_ASSOC);
 		printf($tittlecat['name']);
-		echo' </p>';	
-
-		$exp_array = array();
+		echo' </p>
+		';	
+		
 		$exp_query = "SELECT id, name, status FROM users WHERE status = 'expert' ORDER BY name";
 		$exp_result = mysqli_query($this->db,$exp_query);
 		if(!$exp_result) {exit(mysqli_error());}
+		$exp_row = array();
 		for($i=1;$i<=mysqli_num_rows($exp_result);$i++) {
-			$exp_array[$i] = mysqli_fetch_array($exp_result, MYSQLI_ASSOC);
-		}
-		
-		$exp_prop_array = array();
-		$exp_prop_query = "SELECT id, exp, prop, cat FROM exp_prop WHERE cat = {$_GET['cat']}";
-		$exp_prop_result = mysqli_query($this->db,$exp_prop_query);
-		if(!$exp_prop_result) {exit(mysqli_error());}
-		for($k=0;$k<mysqli_num_rows($exp_prop_result);$k++) {
-			$exp_prop_array[$k] = mysqli_fetch_array($exp_prop_result, MYSQLI_ASSOC);
-		}
-		
-		$objects_array = array();
-		$objects_query = "SELECT id, name, cat FROM obj WHERE cat = {$_GET['cat']}";
-		$objects_result = mysqli_query($this->db,$objects_query);
-		if(!$objects_result) {exit(mysqli_error());}
-		for($m=0;$m<mysqli_num_rows($objects_result);$m++) {
-			$objects_array[$m] = mysqli_fetch_array($objects_result, MYSQLI_ASSOC);
-		}
-		
-		$obj_prop_array = array();
-		$obj_prop_query = "SELECT * FROM obj_prop WHERE cat = {$_GET['cat']}";
-		$obj_prop_result = mysqli_query($this->db,$obj_prop_query);
-		if(!$obj_prop_result) {exit(mysqli_error());}
-		$maches = 0;
-		for($n=0;$n<mysqli_num_rows($obj_prop_result);$n++) { 
-			$obj_prop_array[$n] = mysqli_fetch_array($obj_prop_result, MYSQLI_ASSOC);
-		}
-		
-		if(empty($objects_array)){
-			echo '<p class="expname">Нет объектов!</p>';
-			goto endpage;
-		}
-		function result_sort($a, $b) {
-			if ($a['round'] == $b['round']) {return 0;}
-			return ($a['round'] > $b['round']) ? -1 : 1;
-		}
-		
-		foreach($exp_array as $expert){
-			$major_prop = array();
-			foreach($exp_prop_array as $one_major_prop){
-				if($one_major_prop['exp'] == $expert['id']){
-					array_push($major_prop, $one_major_prop['prop']);
-				}
+			$exp_row = mysqli_fetch_array($exp_result, MYSQLI_ASSOC);
+			
+			$exp_prop_query = "SELECT id, exp, prop, cat FROM exp_prop WHERE cat = {$_GET['cat']} AND exp = {$exp_row['id']}";
+			$exp_prop_result = mysqli_query($this->db,$exp_prop_query);
+			if(!$exp_prop_result) {exit(mysqli_error());}
+			$exp_prop_row = array();
+			$exp_prop_array = array();
+			
+			$table_array = array();
+			$max_mu = 0;
+			
+			printf('
+				<p class="expname">Эксперт %s</p>
+				<table class="restable">
+				
+				',$exp_row['name']
+			);
+			
+			for($k=0;$k<mysqli_num_rows($exp_prop_result);$k++) {
+				$exp_prop_row = mysqli_fetch_array($exp_prop_result, MYSQLI_ASSOC);
+				$exp_prop_array[$k] = $exp_prop_row['prop'];
 			}
-			$result_table = array();
-			foreach($objects_array as $object){
-				$result_row = array();
-				$result_row['name'] = $object['name'];
-				$one_obj_prop = 0;
+			
+			$objects_query = "SELECT id, name, cat FROM obj WHERE cat = {$_GET['cat']}";
+			$objects_result = mysqli_query($this->db,$objects_query);
+			$objects_result2 = mysqli_query($this->db,$objects_query);
+			if(!$objects_result) {exit(mysqli_error());}
+			$objects_row = array();
+			$objects_id_array = array();
+			
+			for($m=0;$m<mysqli_num_rows($objects_result);$m++) {
+				$objects_row = mysqli_fetch_array($objects_result, MYSQLI_ASSOC);
+				$objects_id_array[$m] = $objects_row['id'];
+				
+				$obj_prop_query = "SELECT * FROM prop INNER JOIN obj_prop ON obj_prop.prop = prop.id WHERE prop.cat = {$_GET['cat']} AND obj_prop.obj = {$objects_row['id']}";
+				$obj_prop_result = mysqli_query($this->db,$obj_prop_query);
+				if(!$obj_prop_result) {exit(mysqli_error());}
+				$obj_prop_row = array();
+				$obj_prop_array = array();
 				$maches = 0;
-				foreach($obj_prop_array as $obj_prop){
-					if($obj_prop['obj'] != $object['id']){
-						continue;
-					}
-					if(in_array($obj_prop['prop'], $major_prop)){
+				for($n=0;$n<mysqli_num_rows($obj_prop_result);$n++) {
+					$obj_prop_row = mysqli_fetch_array($obj_prop_result, MYSQLI_ASSOC);
+					$obj_prop_array[$n] = $obj_prop_row['prop'];
+					if(in_array($obj_prop_row['prop'],$exp_prop_array)) {
 						$maches++;
 					}
-					$one_obj_prop++;
 				}
-				$result_row['denominator'] = count($major_prop)+$one_obj_prop-$maches;
-				$result_row['maches'] = $maches;
-				$result_row['round'] = round($maches/$result_row['denominator'], 2);
-				array_push($result_table, $result_row);
-			}
-			usort($result_table, "result_sort");
-			printf(
-				'<p class="expname">Эксперт %s</p>
-				<table class="restable">'
-				,$expert['name']
-			);
-			if(empty($major_prop)){
-				echo '<th>Нет экспертной оценки</th></table><br/><br/>';
-				continue;
-			}else{
-				echo '
+				
+				$denominator = count($obj_prop_array) + count($exp_prop_array) - $maches;
+				if($denominator != 0){
+					$mu = $maches/$denominator;
+				}
+				if($mu>$max_mu){$max_mu=$mu;}
+				
+				$round_mu = round($mu,2); 
+				$table_row = <<<EOL
 				<tr>
+					<td>{$objects_row['name']}</td>
+					<td>$maches/$denominator</td>
+					<td>$round_mu</td>
+				</tr>
+EOL;
+				$str_mu = strval($mu);
+				if($mu==0){
+					$str_mu = strval($m/1000);
+				}
+				if (array_key_exists($str_mu,$table_array)){
+					$str_mu = strval($mu+($m/1000));
+				}
+				$table_array[$str_mu] = $table_row;
+			}
+			
+			krsort($table_array);
+			if(mysqli_num_rows($objects_result)>0) {
+				if($max_mu==0){
+					echo '<th>Нет экспертной оценки</th>';
+				}else{
+					echo '<tr>
 					<th>Объект</th><th class="mu">&#956;</th><th class="mu">&#956;</th>
-				</tr>';
+					</tr>';
+					foreach ($table_array as $value) {
+						echo $value ;
+					}
+				}	
+			}else{
+				echo '<th>Нет объектов</th>';
 			}
-			foreach($result_table as $result_row){
-				printf(
-					'<tr>
-						<td>%s</td>
-						<td>%s/%s</td>
-						<td>%s</td>
-					</tr>', $result_row['name'], $result_row['maches'], $result_row['denominator'], $result_row['round']
-				);
-			}
+			
 			echo '
 				</table>
-				<br/><br/>';
+				<br><br>';
 		}
-		endpage:
+
 		echo '
 			</div>
+
 		<br><br>
 		<script type="text/javascript" src="resourses/script.js"></script>
 		</body>

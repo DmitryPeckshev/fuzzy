@@ -34,7 +34,7 @@ class objects extends Core {
 		if(!$prop_id_query) {exit(mysqli_error());}
 		$prop_id = mysqli_fetch_array($prop_id_query, MYSQLI_ASSOC);
 		if(!empty($name_newprop_add)){
-			$insert_obj_prop =  "INSERT INTO obj_prop (obj,prop)" . "VALUES({$_POST['obj_id']},{$prop_id['id']});"; 
+			$insert_obj_prop =  "INSERT INTO obj_prop (obj,prop,cat)" . "VALUES({$_POST['obj_id']},{$prop_id['id']},{$_GET['cat']});"; 
 			mysqli_query($this->db,$insert_obj_prop);
 			printf ('<div class="sucsessmsg">Свойство &quot%s&quot добавлено!</div>',$name_newprop_add);
 		}
